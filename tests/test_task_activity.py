@@ -19,6 +19,14 @@ def tokens(input_tokens=90000, cached=45000, output=1000, window=272000):
 
 
 class ActivityTests(unittest.TestCase):
+    def test_large_active_session_restores_start_before_tail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'rollout-large.jsonl'
+            path.write_text(event('task_started') + ('{}\n' * 400000) + tokens())
+            tracker = ActivityTracker(directory)
+            self.assertEqual(tracker.poll(), (True, 0, 0, 0))
+            self.assertEqual(tracker.context_usage(), (91000, 272000, 50.0))
+
     def test_most_recent_active_session_is_selected(self):
         with tempfile.TemporaryDirectory() as directory:
             older = Path(directory) / 'rollout-old.jsonl'

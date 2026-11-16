@@ -23,6 +23,40 @@ class FakeActivity:
 
 
 class PetWindowTests(unittest.TestCase):
+    def test_long_status_expands_bubble_without_moving_pet_bottom(self):
+        with patch.object(self.window, 'now', return_value=30):
+            self.window.move(100, 150)
+            original_bottom = self.window.geometry().bottom()
+            self.window.talk('还是要看本小姐的：\n上下文 108.7k / 272.0k\n本次请求缓存命中 100%')
+            self.window.refresh()
+            self.assertGreater(self.window.height(), 380)
+            self.assertEqual(self.window.geometry().bottom(), original_bottom)
+            bubble, text = self.window.speech_rectangles(self.window.speech.current(30))
+            self.assertGreaterEqual(text.height(), self.window.speech_text_height(self.window.speech.current(30)) + 16)
+            self.assertLessEqual(bubble.bottom(), self.window.height() - 296)
+
+    def test_short_speech_retains_default_window_size(self):
+        with patch.object(self.window, 'now', return_value=30):
+            self.window.talk('本小姐来了。')
+            self.window.refresh()
+            self.assertEqual(self.window.size().width(), 300)
+            self.assertEqual(self.window.size().height(), 380)
+
+    def test_cache_status_has_extra_height_even_when_text_fits(self):
+        bubble, _ = self.window.speech_rectangles('缓存命中 97%')
+        self.assertGreaterEqual(bubble.height(), 82)
+
+    def test_window_returns_to_default_after_long_speech_expires(self):
+        with patch.object(self.window, 'now', return_value=30) as now:
+            self.window.move(100, 150)
+            bottom = self.window.geometry().bottom()
+            self.window.talk('还是要看本小姐的：\n上下文 108.7k / 272.0k\n本次请求缓存命中 100%')
+            self.window.refresh()
+            now.return_value = 36
+            self.window.refresh()
+            self.assertEqual(self.window.height(), 380)
+            self.assertEqual(self.window.geometry().bottom(), bottom)
+
     def test_context_speech_only_during_work(self):
         with patch.object(self.window, 'now', return_value=30):
             self.window.check_activity()
