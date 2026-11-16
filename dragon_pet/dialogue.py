@@ -64,6 +64,15 @@ def pick_line(category):
     return selected
 
 
+def format_context_usage(usage):
+    if usage is None:
+        return '本小姐正在忙，上下文数据暂不可用。'
+    used, window, rate = usage
+    cache = f'{rate:.0f}%' if rate is not None else '不可用'
+    prefix = random.choice(('本小姐查到了：', '哼，状态在这里：', '还是要看本小姐的：'))
+    return f'{prefix}\n上下文 {used / 1000:.1f}k / {window / 1000:.1f}k\n本次请求缓存命中 {cache}'
+
+
 def format_limits(result):
     limits = result.get('rateLimits') or {}
     parts = []

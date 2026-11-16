@@ -34,10 +34,11 @@ class ActivityTracker:
                     continue
                 item = self.files.get(path)
                 if item is None:
-                    item = {'offset': max(0, stat.st_size - 1024 * 1024), 'active': False, 'partial': b''}
+                    item = {'offset': max(0, stat.st_size - 1024 * 1024), 'active': False, 'partial': b'', 'usage': None}
                     self.files[path] = item
                 if stat.st_size < item['offset']:
-                    item.update(offset=0, active=False, partial=b'')
+                    item.update(offset=0, active=False, partial=b'', usage=None)
+                item['modified'] = stat.st_mtime_ns
                 with path.open('rb') as stream:
                     stream.seek(item['offset'])
                     data = item['partial'] + stream.read()
@@ -54,6 +55,11 @@ class ActivityTracker:
                         continue
                     if kind == 'task_started':
                         item['active'] = True
+                        item['usage'] = None
+                    elif kind == 'token_count' and item['active']:
+                        info = record['payload'].get('info')
+                        if isinstance(info, dict):
+                            item['usage'] = info
                     elif kind in ('task_complete', 'turn_aborted'):
                         if kind == 'task_complete' and item['active'] and self.initialized:
                             completed += 1
@@ -64,3 +70,24 @@ class ActivityTracker:
                 continue
         self.initialized = True
         return any(item['active'] for item in self.files.values()), completed, aborted, missing
+
+    def context_usage(self):
+        active = [item for item in self.files.values() if item['active']]
+        if not active:
+            return None
+        info = max(active, key=lambda item: item.get('modified', 0)).get('usage')
+        if not isinstance(info, dict):
+            return None
+        usage = info.get('last_token_usage')
+        window = info.get('model_context_window')
+        if not isinstance(usage, dict):
+            return None
+        incoming = usage.get('input_tokens')
+        outgoing = usage.get('output_tokens')
+        cached = usage.get('cached_input_tokens')
+        def valid(value):
+            return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        if not all(valid(value) for value in (incoming, outgoing, window)) or window == 0:
+            return None
+        rate = 100 * cached / incoming if valid(cached) and incoming > 0 and cached <= incoming else None
+        return incoming + outgoing, window, rate

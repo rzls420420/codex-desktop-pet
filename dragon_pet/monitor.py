@@ -5,6 +5,7 @@ import shlex
 import subprocess
 import sys
 import time
+from dragon_pet.autostart import is_enabled
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -38,8 +39,10 @@ def codex_running():
     return False
 
 
-def next_action(was_running, running, pet_running):
-    if running and not was_running:
+def next_action(was_running, running, pet_running, autostart_enabled=False):
+    if autostart_enabled:
+        return None
+    if running and not was_running and not pet_running:
         return 'start'
     if was_running and not running and pet_running:
         return 'stop'
@@ -58,7 +61,11 @@ def main():
     while True:
         running = codex_running()
         active = pet is not None and pet.poll() is None
-        action = next_action(previous, running, active)
+        try:
+            enabled = is_enabled()
+        except OSError:
+            enabled = False
+        action = next_action(previous, running, active, enabled)
         if action == 'start':
             pet = subprocess.Popen([sys.executable, '-m', 'dragon_pet.app'], cwd=ROOT)
         elif action == 'stop':

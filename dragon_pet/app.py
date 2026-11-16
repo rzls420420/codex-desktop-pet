@@ -5,11 +5,12 @@ from pathlib import Path
 
 from PyQt5.QtCore import QRect, Qt, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPainter, QPixmap
-from PyQt5.QtWidgets import QApplication, QMenu, QWidget
+from PyQt5.QtWidgets import QApplication, QMenu, QMessageBox, QWidget
 
+from dragon_pet import autostart
 from dragon_pet.state import PetState
 from dragon_pet.animation import ANIMATIONS, AnimationSchedule, roam_x
-from dragon_pet.dialogue import pick_line, read_limits
+from dragon_pet.dialogue import format_context_usage, pick_line, read_limits
 from dragon_pet.speech import SpeechQueue
 from dragon_pet.task_activity import ActivityTracker
 
@@ -52,6 +53,7 @@ class PetWindow(QWidget):
         self.animations.play('waving', 0, duration=4)
         self.current_animation = None
         self.next_auto_speech = 45
+        self.next_context_speech = 20
         self.speech = SpeechQueue()
         self.talk(pick_line('startup'))
         self.drag = None
@@ -115,6 +117,9 @@ class PetWindow(QWidget):
             self.talk(pick_line('task-aborted'), priority=2)
         if missing:
             self.talk(pick_line('task-unknown'), priority=2)
+        if working and self.now() >= self.next_context_speech:
+            self.talk(format_context_usage(self.activity.context_usage()), priority=0)
+            self.next_context_speech = self.now() + 60
 
     def paintEvent(self, event):
         now = self.now()
@@ -158,6 +163,14 @@ class PetWindow(QWidget):
         sleep = menu.addAction('立即睡觉')
         wake = menu.addAction('叫醒')
         limits = menu.addAction('查看 Codex 剩余额度')
+        context = menu.addAction('查看上下文状态')
+        startup = menu.addAction('开机启动')
+        startup.setCheckable(True)
+        try:
+            startup.setChecked(autostart.is_enabled())
+        except OSError as error:
+            startup.setEnabled(False)
+            startup.setToolTip(str(error))
         preview = menu.addMenu('预览动作')
         previews = {preview.addAction(label): name for name, (_, label) in ANIMATIONS.items()}
         menu.addSeparator()
@@ -179,6 +192,14 @@ class PetWindow(QWidget):
                 self.limits_worker = LimitsWorker(self)
                 self.limits_worker.result.connect(lambda text: self.talk(text, priority=2))
                 self.limits_worker.start()
+        elif chosen == context:
+            self.talk(format_context_usage(self.activity.context_usage()), priority=2)
+        elif chosen == startup:
+            try:
+                autostart.set_enabled(startup.isChecked())
+                self.talk('本小姐已设置开机启动。' if startup.isChecked() else '本小姐已关闭开机启动。')
+            except OSError as error:
+                QMessageBox.warning(self, '开机启动设置失败', str(error))
         elif chosen in previews:
             self.state.wake(self.now())
             name = previews[chosen]
