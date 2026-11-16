@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 
 from PyQt5.QtCore import QRect, Qt, QTimer, QThread, pyqtSignal
-from PyQt5.QtGui import QColor, QFont, QPainter, QPixmap
+from PyQt5.QtGui import QColor, QFont, QFontMetrics, QPainter, QPixmap
 from PyQt5.QtWidgets import QApplication, QMenu, QMessageBox, QWidget
 
 from dragon_pet import autostart
@@ -92,7 +92,28 @@ class PetWindow(QWidget):
                 self.move(x, self.y())
         else:
             self.current_animation = None
+        speech = self.speech.current(self.now())
+        bubble, _ = self.speech_rectangles(speech)
+        height = 380 + max(0, bubble.height() - 66)
+        if height != self.height():
+            bottom = self.y() + self.height()
+            self.resize(self.width(), height)
+            self.move(self.x(), bottom - height)
         self.update()
+
+    def speech_text_height(self, text):
+        if not text:
+            return 0
+        metrics = QFontMetrics(QFont('Sans Serif', 11))
+        return metrics.boundingRect(QRect(0, 0, 256, 100000),
+                                    Qt.TextWordWrap | Qt.TextWrapAnywhere, text).height()
+
+    def speech_rectangles(self, text):
+        text_height = self.speech_text_height(text)
+        height = 66 if text_height <= 54 else text_height + 28
+        if text and '缓存命中' in text:
+            height = max(height, text_height + 28, 82)
+        return QRect(12, 8, 276, height), QRect(22, 14, 256, height - 12)
 
     def play_animation(self, name, duration=4):
         now = self.now()
@@ -127,12 +148,13 @@ class PetWindow(QWidget):
         p.setRenderHint(QPainter.SmoothPixmapTransform)
         speech = self.speech.current(now)
         if speech:
+            bubble, text_rect = self.speech_rectangles(speech)
             p.setBrush(QColor(255, 255, 255, 240))
             p.setPen(QColor('#a394bc'))
-            p.drawRoundedRect(QRect(12, 8, 276, 66), 9, 9)
+            p.drawRoundedRect(bubble, 9, 9)
             p.setFont(QFont('Sans Serif', 11))
             p.setPen(QColor('#30263b'))
-            p.drawText(QRect(22, 14, 256, 54), Qt.AlignCenter | Qt.TextWordWrap, speech)
+            p.drawText(text_rect, Qt.AlignCenter | Qt.TextWordWrap | Qt.TextWrapAnywhere, speech)
         if self.state.mode == 'idle':
             name = self.animations.current(now, self.state.working)
             images = self.images[name]

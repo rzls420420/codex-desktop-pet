@@ -34,17 +34,27 @@ class ActivityTracker:
                     continue
                 item = self.files.get(path)
                 if item is None:
-                    item = {'offset': max(0, stat.st_size - 1024 * 1024), 'active': False, 'partial': b'', 'usage': None}
+                    item = {'offset': 0, 'active': False, 'partial': b'', 'usage': None}
                     self.files[path] = item
                 if stat.st_size < item['offset']:
                     item.update(offset=0, active=False, partial=b'', usage=None)
                 item['modified'] = stat.st_mtime_ns
                 with path.open('rb') as stream:
                     stream.seek(item['offset'])
-                    data = item['partial'] + stream.read()
+                    lines = []
+                    while True:
+                        line = stream.readline()
+                        if not line:
+                            break
+                        line = item['partial'] + line
+                        item['partial'] = b''
+                        if not line.endswith(b'\n'):
+                            item['partial'] = line
+                            break
+                        if b'event_msg' in line and any(kind in line for kind in
+                                                       (b'task_started', b'token_count', b'task_complete', b'turn_aborted')):
+                            lines.append(line)
                     item['offset'] = stream.tell()
-                lines = data.split(b'\n')
-                item['partial'] = lines.pop()
                 for line in lines:
                     try:
                         record = json.loads(line)
