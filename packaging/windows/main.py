@@ -3,6 +3,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from dragon_pet.autostart import is_enabled
 
 
 def codex_running():
@@ -27,10 +28,14 @@ def monitor():
         except (OSError, subprocess.TimeoutExpired):
             time.sleep(5)
             continue
-        if running and not previous:
+        try:
+            enabled = is_enabled()
+        except OSError:
+            enabled = False
+        if running and not previous and not enabled and (pet is None or pet.poll() is not None):
             command = [sys.executable, '--pet'] if getattr(sys, 'frozen', False) else [sys.executable, str(Path(__file__).resolve()), '--pet']
             pet = subprocess.Popen(command, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-        elif previous and not running and pet and pet.poll() is None:
+        elif previous and not running and pet and pet.poll() is None and not enabled:
             pet.terminate()
             try:
                 pet.wait(timeout=5)
