@@ -18,8 +18,19 @@ class FakeActivity:
         self.result = (result[0], 0, 0, 0)
         return result
 
+    def context_usage(self):
+        return (91000, 272000, 50.0)
+
 
 class PetWindowTests(unittest.TestCase):
+    def test_context_speech_only_during_work(self):
+        with patch.object(self.window, 'now', return_value=30):
+            self.window.check_activity()
+            self.assertIsNone(self.window.speech.current(30))
+            self.window.state.working = True
+            self.window.activity.result = (True, 0, 0, 0)
+            self.window.check_activity()
+            self.assertIn('91.0k / 272.0k', self.window.speech.current(30))
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])

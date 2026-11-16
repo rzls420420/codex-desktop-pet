@@ -4,6 +4,12 @@ from dragon_pet.dialogue import format_limits, pick_line
 
 
 class DialogueTests(unittest.TestCase):
+    def test_context_status_uses_k_and_does_not_invent_cache_rate(self):
+        from dragon_pet.dialogue import format_context_usage
+        self.assertIn('91.0k / 272.0k', format_context_usage((91000, 272000, 50)))
+        self.assertIn('50%', format_context_usage((91000, 272000, 50)))
+        self.assertIn('不可用', format_context_usage((91000, 272000, None)))
+        self.assertIn('不可用', format_context_usage(None))
     def test_formats_remaining_not_used(self):
         result = {'rateLimits': {'primary': {'usedPercent': 98, 'windowDurationMins': 300},
                                  'secondary': {'usedPercent': 18, 'windowDurationMins': 10080}}}
