@@ -11,15 +11,15 @@
 - 桌面拖动、动作预览、睡眠与唤醒，以及对话气泡。
 - 尝试根据本地 Codex 会话事件展示任务状态和结束消息；远程任务和异常退出可能无法准确识别。
 - 按需使用本地 Codex app-server 接口查询额度。结果不可用或账号不匹配时不显示数值。
-- 提供 Linux 和 Windows 11 启动及打包脚本。Windows 版本尚未在实机验证。
+- 提供 Linux 和 Windows 11 启动及打包脚本。v1.0.1 Windows 修复附件已在 Windows 11 上验证启动、额度接口及任务状态读取；跟随模式的完整关闭与重启流程尚未实测。
 
 程序读取本机会话记录以检测事件类型，不上传或显示会话内容。请仅在信任本程序的环境运行。
 
 ## 运行
 
 - Linux：参见 [Linux 说明](packaging/linux/README.md)，需要 Python 3.10+、PyQt5 和图形桌面。跟随模式目前识别特定 Codex 安装路径。
-- Windows 11：参见 [Windows 说明](packaging/windows/README.md)。这是源码运行和构建方案，不包含预编译 EXE。
-- 生成两个平台的源码运行包：`python3 packaging/create_packages.py`。生成文件位于 `dist/`。
+- Windows 11：请在 v1.0.1 Release 下载 `codex-desktop-pet-v1.0.1-win11-fixed.zip`。该附件包含额度查询和 Codex 进程识别修复；修复尚未合入仓库源码或 v1.0.1 标签。它是源码运行包，不包含预编译 EXE。额度为本机 Codex CLI 账户的额度，不保证与桌面界面账户相同。
+- 生成两个平台的源码运行包：`python3 packaging/create_packages.py`。生成文件位于 `dist/`；从仓库生成的 Windows 包不包含上述修复。
 
 资源位于 `assets/transparent-v2/`。可在安装 Pillow 后运行 `python3 build_transparent_sprites.py`，从透明版源图重新生成动画帧。
 
